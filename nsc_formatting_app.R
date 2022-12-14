@@ -1,11 +1,12 @@
 # The below is a Shiny webapp that takes a raw data pull from the Banner student information
-# system and formats it for upload to the National Student Clearinghouse. See SQL at bottom.
+# system and formats it for upload to the National Student Clearinghouse.
 
 # Make sure your Excel dates are in mm/dd/yyyy format before uploading (rather than 2-Feb format)
 
 library(shiny)
 library(tidyverse)
 library(lubridate)
+library(stringi)
 
 # Define UI 
 ui <- fluidPage(
@@ -34,9 +35,9 @@ server <- function(input, output) {
       mutate(
         D1 = rep("D1", times = length(SPRIDEN_PIDM)),                                            # creates the repeating D1 column
         ssn = rep("", times = length(SPRIDEN_PIDM)),                                             # creates an empty column for the ssn we don't include
-        first_name = iconv(gsub("[[:punct:]]", "", SPRIDEN_FIRST_NAME), to = 'ASCII//TRANSLIT'), # removes all punctuation in the first name, and converts special characters to non-special characters
-        middle_initial = iconv(substr(SPRIDEN_MI, 0, 1), to = 'ASCII//TRANSLIT'),                # extracts just the first initial of an individual's middle name, and converts special characters to non-special characters
-        last_name = iconv(gsub("[[:punct:]]", "", SPRIDEN_LAST_NAME), to = 'ASCII//TRANSLIT'),   # removes all punctuation in the last name, and converts special characters to non-special characters
+        first_name = stri_trans_general(SPRIDEN_FIRST_NAME, 'latin-ascii'),                      # removes all punctuation in the first name, and converts special characters to non-special characters
+        middle_initial = stri_trans_general(substr(SPRIDEN_MI, 0, 1), 'latin-ascii'),            # extracts just the first initial of an individual's middle name, and converts special characters to non-special characters
+        last_name = stri_trans_general(SPRIDEN_LAST_NAME, 'latin-ascii'),                        # removes all punctuation in the last name, and converts special characters to non-special characters
         suffix = rep("", times = length(SPRIDEN_PIDM)),                                          # creates an empty column for suffix, which we don't provide
         bday = gsub("[[:punct:]]", "", ymd(as_date(SPBPERS_BIRTH_DATE, format = "%m/%d/%Y"))),   # formats date of birth correctly
         search_date = gsub("[[:punct:]]", "", ymd(as_date(SEARCH_DATE, format = "%m/%d/%Y"))),   # formats search date correctly
@@ -93,11 +94,6 @@ server <- function(input, output) {
 # Run the application
 shinyApp(ui = ui, server = server)
 
-# SQL for reference (just join on your target population)
-
-# SELECT SATURN_SPRIDEN.SPRIDEN_PIDM, SATURN_SPRIDEN.SPRIDEN_ID, SATURN_SPRIDEN.SPRIDEN_FIRST_NAME, SATURN_SPRIDEN.SPRIDEN_MI, SATURN_SPRIDEN.SPRIDEN_LAST_NAME, SATURN_SPBPERS.SPBPERS_BIRTH_DATE
-# FROM SATURN_SPRIDEN INNER JOIN SATURN_SPBPERS ON SATURN_SPRIDEN.SPRIDEN_PIDM = SATURN_SPBPERS.SPBPERS_PIDM
-# WHERE (((SATURN_SPRIDEN.SPRIDEN_CHANGE_IND) Is Null))
-# GROUP BY SATURN_SPRIDEN.SPRIDEN_PIDM, SATURN_SPRIDEN.SPRIDEN_ID, SATURN_SPRIDEN.SPRIDEN_FIRST_NAME, SATURN_SPRIDEN.SPRIDEN_MI, SATURN_SPRIDEN.SPRIDEN_LAST_NAME, SATURN_SPBPERS.SPBPERS_BIRTH_DATE;
+# See SQL fill for base pull (just join on your target population)
 
 # And add column with the header SEARCH_DATE for the search date in question in mm/dd/yyyy format.
